@@ -87,7 +87,7 @@ class HTTPClient(object):
 
         # set the http request for GET method
         if method.upper() == "GET":
-            request = "GET /" + path[1:] + " HTTP/1.1\r\n"
+            request = "GET " + path + " HTTP/1.1\r\n"
             request += "User-Agent: Web Client\r\n"
             request += "Host: " + host + "\r\n"
             request += "Accept: */*\r\n"
@@ -99,7 +99,7 @@ class HTTPClient(object):
             if args != None:
                 args_encode = urllib.urlencode(args)
 
-            request = "POST /" + path[1:] +" HTTP/1.1\r\n"
+            request = "POST " + path +" HTTP/1.1\r\n"
             request += "Host: " + host + "\r\n"
             request += "Content-Type: application/x-www-form-urlencoded\r\n"
             request += "Content-Length: " +str(len(args_encode)) + "\r\n"
