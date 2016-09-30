@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 # Copyright 2016 Abram Hindle, https://github.com/tywtyw2002, and https://github.com/treedust
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,6 +24,10 @@ import re
 # you may use urllib to encode data appropriately
 import urllib
 
+# use urlparse to get host, path and port
+# https://docs.python.org/2/library/urlparse.html
+from urlparse import urlparse
+
 def help():
     print "httpclient.py [GET/POST] [URL]\n"
 
@@ -33,20 +37,75 @@ class HTTPResponse(object):
         self.body = body
 
 class HTTPClient(object):
-    #def get_host_port(self,url):
-
     def connect(self, host, port):
         # use sockets!
-        return None
 
+        # set the port as 80 if port is None
+        if port == None:
+            port = 80
+
+        # https://docs.python.org/2/howto/sockets.html
+        # create a socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # connect to web server
+        s.connect((host,port))
+        return s
+
+    # get the status code
     def get_code(self, data):
-        return None
+        lst = data.split()
+        code = int(lst[1])
+        return code
 
-    def get_headers(self,data):
-        return None
+    # get the header
+    def get_headers(self, data):
+        lst = data.split("/r/n/r/n")
+        headers = lst[0]
+        return headers
 
+    # get the body of html
     def get_body(self, data):
-        return None
+        lst = data.split("\r\n\r\n")
+        body = lst[1]
+        return body
+
+    def httprequest(self,url, method,args=None):
+        # if url not start with http://, then add it
+        if not url.lower().startswith("http://"):
+            url = "http://"+url
+
+        # phase the url into several parts
+        url_parse = urlparse(url)
+
+        # get host, path, and port of url
+        host = url_parse.hostname
+        path = url_parse.path
+        port = url_parse.port
+
+        request = ""
+
+        # set the http request for GET method
+        if method.upper() == "GET":
+            request = "GET /" + path[1:] + " HTTP/1.1\r\n"
+            request += "User-Agent: Web Client\r\n"
+            request += "Host: " + host + "\r\n"
+            request += "Accept: */*\r\n"
+            request += "Connection: Close\r\n\r\n"
+
+        # set the http request for POST method
+        if method.upper() == "POST":
+            args_encode = ""
+            if args != None:
+                args_encode = urllib.urlencode(args)
+
+            request = "POST /" + path[1:] +" HTTP/1.1\r\n"
+            request += "Host: " + host + "\r\n"
+            request += "Content-Type: application/x-www-form-urlencoded\r\n"
+            request += "Content-Length: " +str(len(args_encode)) + "\r\n"
+            request += "Accept: */*\r\n\r\n"
+            request += args_encode +"\r\n"
+
+        return host, port, request
 
     # read everything from the socket
     def recvall(self, sock):
@@ -61,13 +120,55 @@ class HTTPClient(object):
         return str(buffer)
 
     def GET(self, url, args=None):
-        code = 500
-        body = ""
+        method = "GET"
+
+        # get host, post and request header
+        host, port, request = self.httprequest(url, method,args)
+
+        # connect to web server
+        con = self.connect(host,port)
+
+        # send the request header
+        con.sendall(request)
+
+        # receive the response from server
+        response = self.recvall(con)
+
+        # get the stats code, header and body of html
+        code = self.get_code(response)
+        header = self. get_headers(response)
+        body = self.get_body(response)
+
+        print response
+
+        con.close
+
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
-        code = 500
-        body = ""
+        method = "POST"
+
+        # get host, post and request header
+        host, port, request = self.httprequest(url, method,args)
+
+        # connect to web server
+        con = self.connect(host,port)
+
+        # send the request header
+        con.sendall(request)
+
+        # receive the response from server
+        response = self.recvall(con)
+
+        # get the stats code, header and body of html
+        code = self.get_code(response)
+        header = self. get_headers(response)
+        body = self.get_body(response)
+
+        con.close()
+
+        print response
+
         return HTTPResponse(code, body)
 
     def command(self, url, command="GET", args=None):
@@ -75,7 +176,7 @@ class HTTPClient(object):
             return self.POST( url, args )
         else:
             return self.GET( url, args )
-    
+
 if __name__ == "__main__":
     client = HTTPClient()
     command = "GET"
@@ -85,4 +186,4 @@ if __name__ == "__main__":
     elif (len(sys.argv) == 3):
         print client.command( sys.argv[2], sys.argv[1] )
     else:
-        print client.command( sys.argv[1] )   
+        print client.command( sys.argv[1] )
